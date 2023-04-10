@@ -55,15 +55,22 @@
        {:class "text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800" :href "/items"} "Close"]]]]))
 
 (defn save-item [{:keys [params] :as req}]
-  (let [item-id (random-uuid)
+  (let [item-id (if (empty? (:id params))
+                  (random-uuid)
+                  (parse-uuid (:id params)))
+        operation (if (empty? (:id params))
+                    :create
+                    :update)
         item-schema [:map {:closed true}
                      [:db/doc-type :keyword]
+                     [:db/op :keyword]
                      [:xt/id :uuid]
                      [:item/name [:string {:min 1}]]
                      [:item/qty :int]]
         name (:name params)
         qty (m/decode int? (:qty params) mt/string-transformer)
         doc {:db/doc-type :item
+             :db/op operation
              :xt/id item-id
              :item/name name
              :item/qty qty}]
