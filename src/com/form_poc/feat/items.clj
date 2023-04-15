@@ -27,22 +27,6 @@
                [:a
                 {:class "text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800" :href "/items"} "Cancel"]])])
 
-(defn load-item-id [form db param-id]
-  (let [id (parse-uuid param-id)
-        {:keys [item/name item/qty]} (lookup db :xt/id id)]
-    (ui/page
-     {}
-     nil
-     (form {:id id :name name :qty qty}))))
-
-(defn item-form-page [{:keys [biff/db query-params] :as req}]
-  (if-let [param-id (query-params "id")]
-    (load-item-id item-form db param-id)
-    (ui/page
-     {}
-     nil
-     (item-form req))))
-
 (defn message-dialog [msg]
   (ui/page
    {}
@@ -53,6 +37,24 @@
      [:div {:class "flex items-center justify-between"}
       [:a
        {:class "text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800" :href "/items"} "Close"]]]]))
+
+(defn load-item-id [form db param-id]
+  (let [id (parse-uuid param-id)]
+    (if-let [item (lookup db :xt/id id)]
+      (let [{:keys [item/name item/qty]} item]
+        (ui/page
+         {}
+         nil
+         (form {:id id :name name :qty qty})))
+      (message-dialog "No record found."))))
+
+(defn item-form-page [{:keys [biff/db query-params] :as req}]
+  (if-let [param-id (query-params "id")]
+    (load-item-id item-form db param-id)
+    (ui/page
+     {}
+     nil
+     (item-form req))))
 
 (defn save-item [{:keys [params] :as req}]
   (let [{:keys [id name qty]} params
