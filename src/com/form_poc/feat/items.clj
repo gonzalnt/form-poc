@@ -144,9 +144,10 @@
         page (Integer/parseInt re-find)]
     (if (<= page 0) 1 page)))
 
-(defn items [{:keys [query-params session biff/db]}]
+(defn items [{:keys [query-params params session biff/db]}]
   (let [{:user/keys [email]} (xt/entity db (:uid session))
-        page-num (parse-page (query-params "page" "1"))]
+        page-num (parse-page (query-params "page" "1"))
+        item-search (:item-search params (query-params "q"))]
     (ui/page
      {}
      nil
@@ -158,24 +159,45 @@
         "Sign out"])
       "."]
      [:.h-6]
-     [:a {:class "font-medium text-blue-600 dark:text-blue-500 hover:underline" :href "/items/create"} "Create Item"]
+     [:div.mb-6
+      (biff/form {:class "bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" :action "/items"}
+                 [:div.mb-4
+                  [:label {:class "block text-gray-700 text-sm font-bold mb-2" :for "item-search"} "Search:"]
+                  [:input {:class "shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                           :id "item-search" :name "item-search" :type "text" :placeholder "Search" :value item-search}]]
+                 [:div {:class "flex items-center justify-between"}
+                  [:button
+                   {:class "bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" :type "submit"} "Search"]])]
      [:.h-6]
-     (let [max-items 3
-           offset (- (* max-items page-num) max-items)
-           query '{:find (pull item [*])
-                   :where [[item :item/name]]}
-           query-p (assoc query :offset offset :limit max-items)
-           items (q db
-                    query-p)]
-       (items-table items))
+     [:div.mr-4
+      [:a {:class "font-medium text-blue-600 dark:text-blue-500 hover:underline" :href "/items/create"} "Create Item"]]
+     [:.h-6]
+     (if (empty? item-search)
+       (let [max-items 10
+             offset (- (* max-items page-num) max-items)
+             query '{:find (pull item [*])
+                     :where [[item :item/name]]}
+             query-p (assoc query :offset offset :limit max-items)
+             items (q db
+                      query-p)]
+         (items-table items))
+       (let [max-items 10
+             offset (- (* max-items page-num) max-items)
+             query '{:find (pull item [*])
+                     :where [[item :item/name item-search]]
+                     :in [item-search]}
+             query-p (assoc query :offset offset :limit max-items)
+             items (q db
+                      query-p item-search)]
+         (items-table items)))
      [:.h-6]
      [:div.mb-6
-      [:a {:href (str "/items?page=" (dec page-num)) :class "inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"} "Previous"]
-      [:a {:href (str "/items?page=" (inc page-num)) :class "inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"} "Next"]])))
+      [:a {:href (str "/items?page=" (dec page-num) "&q=" item-search) :class "inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"} "Previous"]
+      [:a {:href (str "/items?page=" (inc page-num) "&q=" item-search) :class "inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"} "Next"]])))
 
 (def features
   {:routes ["/items" {:middleware [mid/wrap-signed-in]}
-            ["" {:get items}]
+            ["" {:get items :post items}]
             ["/create" {:get item-form-page}]
             ["/save-item" {:post save-item}]
             ["/edit" {:get item-form-page}]
