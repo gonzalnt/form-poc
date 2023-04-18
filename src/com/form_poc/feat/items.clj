@@ -45,8 +45,43 @@
         (ui/page
          {}
          nil
-         (form {:id id :name name :qty qty})))
+         (form {:id id :name name :qty qty :db db})))
       (message-dialog "No record found."))))
+
+(defn view-history [record] 
+  (let [tx-time (:xtdb.api/tx-time record)
+        history-doc (:xtdb.api/doc record)
+        name (:item/name history-doc)
+        qty (:item/qty history-doc)]
+    [:li [:p  "On " [:strong tx-time] " Record name= " name " qty= " qty]]))
+
+(defn item-form-view [{:keys [id name qty db]}]
+  [:div {:class "w-full max-w-xs"}
+   (biff/form {:class "bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" :hx-get "#"}
+              [:input {:id "id" :name "id" :type "hidden" :value id}]
+              [:div.mb-4
+               [:label {:class "block text-gray-700 text-sm font-bold mb-2" :for "name"} "Name:"]
+               [:input {:class "shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline cursor-not-allowed"
+                        :id "name" :name "name" :type "text" :placeholder "Name" :value name :disabled true}]]
+              [:div.mb-6
+               [:label {:class "block text-gray-700 text-sm font-bold mb-2" :for "qty"} "Quantity:"]
+               [:input {:class "shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline cursor-not-allowed"
+                        :id "qty" :name "qty" :type "number" :placeholder "Quantity" :value qty :disabled true}]]
+              [:div {:class "flex items-center justify-between"}
+               [:a
+                {:class "text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800" :href "/items"} "Close"]])
+   [:div.mb-4 
+    (let [history-list (xt/entity-history db id :desc {:with-docs? true})]
+      [:ul
+       (map view-history history-list)])]])
+
+(defn item-view-page [{:keys [biff/db query-params]}]
+  (if-let [param-id (query-params "id")]
+    (load-item-id item-form-view db param-id)
+    (ui/page
+     {}
+     nil
+     (message-dialog "No item id."))))
 
 (defn item-form-page [{:keys [biff/db query-params] :as req}]
   (if-let [param-id (query-params "id")]
@@ -177,6 +212,7 @@
   {:routes ["/items" {:middleware [mid/wrap-signed-in]}
             ["" {:get items}]
             ["/create" {:get item-form-page}]
+            ["/view" {:get item-view-page}]
             ["/save-item" {:post save-item}]
             ["/edit" {:get item-form-page}]
             ["/delete" {:get item-form-delete-page}]
