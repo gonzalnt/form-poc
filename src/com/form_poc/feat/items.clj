@@ -27,22 +27,6 @@
                [:a
                 {:class "text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800" :href "/items"} "Cancel"]])])
 
-(defn load-item-id [form db param-id]
-  (let [id (parse-uuid param-id)
-        {:keys [item/name item/qty]} (lookup db :xt/id id)]
-    (ui/page
-     {}
-     nil
-     (form {:id id :name name :qty qty}))))
-
-(defn item-form-page [{:keys [biff/db query-params] :as req}]
-  (if-let [param-id (query-params "id")]
-    (load-item-id item-form db param-id)
-    (ui/page
-     {}
-     nil
-     (item-form req))))
-
 (defn message-dialog [msg]
   (ui/page
    {}
@@ -53,6 +37,59 @@
      [:div {:class "flex items-center justify-between"}
       [:a
        {:class "text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800" :href "/items"} "Close"]]]]))
+
+(defn load-item-id [form db param-id]
+  (let [id (parse-uuid param-id)]
+    (if-let [item (lookup db :xt/id id)]
+      (let [{:keys [item/name item/qty]} item]
+        (ui/page
+         {}
+         nil
+         (form {:id id :name name :qty qty :db db})))
+      (message-dialog "No record found."))))
+
+(defn view-history [record] 
+  (let [tx-time (:xtdb.api/tx-time record)
+        history-doc (:xtdb.api/doc record)
+        name (:item/name history-doc)
+        qty (:item/qty history-doc)]
+    [:li [:p  "On " [:strong tx-time] " Record name= " name " qty= " qty]]))
+
+(defn item-form-view [{:keys [id name qty db]}]
+  [:div {:class "w-full max-w-xs"}
+   (biff/form {:class "bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" :hx-get "#"}
+              [:input {:id "id" :name "id" :type "hidden" :value id}]
+              [:div.mb-4
+               [:label {:class "block text-gray-700 text-sm font-bold mb-2" :for "name"} "Name:"]
+               [:input {:class "shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline cursor-not-allowed"
+                        :id "name" :name "name" :type "text" :placeholder "Name" :value name :disabled true}]]
+              [:div.mb-6
+               [:label {:class "block text-gray-700 text-sm font-bold mb-2" :for "qty"} "Quantity:"]
+               [:input {:class "shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline cursor-not-allowed"
+                        :id "qty" :name "qty" :type "number" :placeholder "Quantity" :value qty :disabled true}]]
+              [:div {:class "flex items-center justify-between"}
+               [:a
+                {:class "text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800" :href "/items"} "Close"]])
+   [:div.mb-4 
+    (let [history-list (xt/entity-history db id :desc {:with-docs? true})]
+      [:ul
+       (map view-history history-list)])]])
+
+(defn item-view-page [{:keys [biff/db query-params]}]
+  (if-let [param-id (query-params "id")]
+    (load-item-id item-form-view db param-id)
+    (ui/page
+     {}
+     nil
+     (message-dialog "No item id."))))
+
+(defn item-form-page [{:keys [biff/db query-params] :as req}]
+  (if-let [param-id (query-params "id")]
+    (load-item-id item-form db param-id)
+    (ui/page
+     {}
+     nil
+     (item-form req))))
 
 (defn save-item [{:keys [params] :as req}]
   (let [{:keys [id name qty]} params
@@ -127,8 +164,24 @@
      [:a {:class "bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded" :href (str "/items/edit?id=" id)} "Edit "]
      [:a {:class "bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" :href (str "/items/delete?id=" id)} "Delete "]]]])
 
-(defn items [{:keys [session biff/db]}]
-  (let [{:user/keys [email]} (xt/entity db (:uid session))]
+(defn items-table [items]
+  [:table.table-auto
+   [:thead
+    [:tr
+     [:th.border.px-4.py-2 "Name"]
+     [:th.border.px-4.py-2 "Quantity"]
+     [:th.border.px-4.py-2 "Operations"]]]
+   [:tbody
+    (map list-item items)]])
+
+(defn parse-page [page]
+  (let [re-find (re-find #"\A-?\d+" page)
+        page (Integer/parseInt re-find)]
+    (if (<= page 0) 1 page)))
+
+(defn items [{:keys [query-params session biff/db]}]
+  (let [{:user/keys [email]} (xt/entity db (:uid session))
+        page-num (parse-page (query-params "page" "1"))]
     (ui/page
      {}
      nil
@@ -142,22 +195,24 @@
      [:.h-6]
      [:a {:class "font-medium text-blue-600 dark:text-blue-500 hover:underline" :href "/items/create"} "Create Item"]
      [:.h-6]
-     (let [items (q db
-                    '{:find (pull item [*])
-                      :where [[item :item/name]]})]
-       [:table.table-auto
-        [:thead
-         [:tr
-          [:th.border.px-4.py-2 "Name"]
-          [:th.border.px-4.py-2 "Quantity"]
-          [:th.border.px-4.py-2 "Operations"]]]
-        [:tbody
-         (map list-item items)]]))))
+     (let [max-items 3
+           offset (- (* max-items page-num) max-items)
+           query '{:find (pull item [*])
+                   :where [[item :item/name]]}
+           query-p (assoc query :offset offset :limit max-items)
+           items (q db
+                    query-p)]
+       (items-table items))
+     [:.h-6]
+     [:div.mb-6
+      [:a {:href (str "/items?page=" (dec page-num)) :class "inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"} "Previous"]
+      [:a {:href (str "/items?page=" (inc page-num)) :class "inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"} "Next"]])))
 
 (def features
   {:routes ["/items" {:middleware [mid/wrap-signed-in]}
             ["" {:get items}]
             ["/create" {:get item-form-page}]
+            ["/view" {:get item-view-page}]
             ["/save-item" {:post save-item}]
             ["/edit" {:get item-form-page}]
             ["/delete" {:get item-form-delete-page}]
