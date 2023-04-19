@@ -9,7 +9,7 @@
 
 (defn item-form [{:keys [id name qty form-errors]}]
   [:div {:class "w-full max-w-xs"}
-   (biff/form {:class "bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" :hx-post "/items/save-item" :hx-swap "outerHTML"}
+   (biff/form {:class "form" :hx-post "/items/save-item" :hx-swap "outerHTML"}
               [:input {:id "id" :name "id" :type "hidden" :value id}]
               [:div.mb-4
                [:label {:class "block text-gray-700 text-sm font-bold mb-2" :for "name"} "Name:"]
@@ -57,7 +57,7 @@
 
 (defn item-form-view [{:keys [id name qty db]}]
   [:div {:class "w-full max-w-xs"}
-   (biff/form {:class "bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" :hx-get "#"}
+   (biff/form {:class "form" :hx-get "#"}
               [:input {:id "id" :name "id" :type "hidden" :value id}]
               [:div.mb-4
                [:label {:class "block text-gray-700 text-sm font-bold mb-2" :for "name"} "Name:"]
@@ -68,8 +68,8 @@
                [:input {:class "shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline cursor-not-allowed"
                         :id "qty" :name "qty" :type "number" :placeholder "Quantity" :value qty :disabled true}]]
               [:div {:class "flex items-center justify-between"}
-               [:a
-                {:class "text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800" :href "/items"} "Close"]])
+               [:a.btn
+                {:href "/items"} "Close"]])
    [:div.mb-4 
     (let [history-list (xt/entity-history db id :desc {:with-docs? true})]
       [:ul
@@ -121,7 +121,7 @@
 
 (defn item-form-delete [{:keys [id name qty]}]
   [:div {:class "w-full max-w-xs"}
-   (biff/form {:class "bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" :hx-post "/items/delete-item" :hx-swap "outerHTML"}
+   (biff/form {:class "form" :hx-post "/items/delete-item" :hx-swap "outerHTML"}
               [:input {:id "id" :name "id" :type "hidden" :value id}]
               [:div.mb-4
                [:label {:class "block text-gray-700 text-sm font-bold mb-2" :for "name"} "Name:"]
@@ -195,17 +195,17 @@
       "."]
      [:.h-6]
      [:div.mb-6
-      (biff/form {:class "bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" :action "/items"}
+      (biff/form {:class "form" :action "/items"}
                  [:div.mb-4
                   [:label {:class "block text-gray-700 text-sm font-bold mb-2" :for "item-search"} "Search:"]
-                  [:input {:class "shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                           :id "item-search" :name "item-search" :type "text" :placeholder "Search" :value item-search}]]
+                  [:input.search-input {
+                           :id "item-search" :name "item-search" :type "text" :placeholder "Search item name" :value item-search}]]
                  [:div {:class "flex items-center justify-between"}
-                  [:button
-                   {:class "bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" :type "submit"} "Search"]])]
+                  [:button.btn
+                   {:type "submit"} "Search"]])]
      [:.h-6]
      [:div.mr-4
-      [:a {:class "font-medium text-blue-600 dark:text-blue-500 hover:underline" :href "/items/create"} "Create Item"]]
+      [:a.btn-orange {:href "/items/create"} "Create Item"]]
      [:.h-6]
      (if (empty? item-search)
        (let [max-items 10
