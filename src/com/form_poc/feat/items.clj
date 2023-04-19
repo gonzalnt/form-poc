@@ -233,7 +233,7 @@
             ["" {:get items :post items}]
             ["/create" {:get item-form-page}]
             ["/save-item" {:post save-item}]
-            ["/view" {:get item-form-view}]
+            ["/view" {:get item-view-page}]
             ["/edit" {:get item-form-page}]
             ["/delete" {:get item-form-delete-page}]
             ["/delete-item" {:post delete-item}]]})
