@@ -9,7 +9,7 @@
 
 (defn item-form [{:keys [id name qty form-errors]}]
   [:div {:class "w-full max-w-xs"}
-   (biff/form {:class "bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" :hx-post "/items/save-item" :hx-swap "outerHTML"}
+   (biff/form {:class "form" :hx-post "/items/save-item" :hx-swap "outerHTML"}
               [:input {:id "id" :name "id" :type "hidden" :value id}]
               [:div.mb-4
                [:label {:class "block text-gray-700 text-sm font-bold mb-2" :for "name"} "Name:"]
@@ -22,10 +22,10 @@
                         :id "qty" :name "qty" :type "number" :placeholder "Quantity" :value qty}]
                [:p {:class "text-red-500 text-xs italic"} (-> form-errors :item/qty first)]]
               [:div {:class "flex items-center justify-between"}
-               [:button
-                {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" :type "submit"} "Save"]
-               [:a
-                {:class "text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800" :href "/items"} "Cancel"]])])
+               [:button.btn-orange
+                {:type "submit"} "Save"]
+               [:a.btn
+                {:href "/items"} "Cancel"]])])
 
 (defn load-item-id [form db param-id]
   (let [id (parse-uuid param-id)
@@ -51,8 +51,43 @@
      [:p msg]]
     [:div.mb-6
      [:div {:class "flex items-center justify-between"}
-      [:a
-       {:class "text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800" :href "/items"} "Close"]]]]))
+      [:a.btn
+       {:href "/items"} "Close"]]]]))
+
+(defn view-history [record] 
+  (let [tx-time (:xtdb.api/tx-time record)
+        history-doc (:xtdb.api/doc record)
+        name (:item/name history-doc)
+        qty (:item/qty history-doc)]
+    [:li [:p  "On " [:strong tx-time] " Record name= " name " qty= " qty]]))
+
+(defn item-form-view [{:keys [id name qty db]}]
+  [:div {:class "w-full max-w-xs"}
+   (biff/form {:class "form" :hx-get "#"}
+              [:input {:id "id" :name "id" :type "hidden" :value id}]
+              [:div.mb-4
+               [:label {:class "block text-gray-700 text-sm font-bold mb-2" :for "name"} "Name:"]
+               [:input {:class "shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline cursor-not-allowed"
+                        :id "name" :name "name" :type "text" :placeholder "Name" :value name :disabled true}]]
+              [:div.mb-6
+               [:label {:class "block text-gray-700 text-sm font-bold mb-2" :for "qty"} "Quantity:"]
+               [:input {:class "shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline cursor-not-allowed"
+                        :id "qty" :name "qty" :type "number" :placeholder "Quantity" :value qty :disabled true}]]
+              [:div {:class "flex items-center justify-between"}
+               [:a.btn
+                {:href "/items"} "Close"]])
+   [:div.mb-4 
+    (let [history-list (xt/entity-history db id :desc {:with-docs? true})]
+      [:ul
+       (map view-history history-list)])]])
+
+(defn item-view-page [{:keys [biff/db query-params]}]
+  (if-let [param-id (query-params "id")]
+    (load-item-id item-form-view db param-id)
+    (ui/page
+     {}
+     nil
+     (message-dialog "No item id."))))
 
 (defn save-item [{:keys [params] :as req}]
   (let [{:keys [id name qty]} params
@@ -84,7 +119,7 @@
 
 (defn item-form-delete [{:keys [id name qty]}]
   [:div {:class "w-full max-w-xs"}
-   (biff/form {:class "bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" :hx-post "/items/delete-item" :hx-swap "outerHTML"}
+   (biff/form {:class "form" :hx-post "/items/delete-item" :hx-swap "outerHTML"}
               [:input {:id "id" :name "id" :type "hidden" :value id}]
               [:div.mb-4
                [:label {:class "block text-gray-700 text-sm font-bold mb-2" :for "name"} "Name:"]
@@ -95,10 +130,10 @@
                [:input {:class "shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline cursor-not-allowed"
                         :id "qty" :name "qty" :type "number" :placeholder "Quantity" :value qty :disabled true}]]
               [:div {:class "flex items-center justify-between"}
-               [:button
-                {:class "bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" :type "submit"} "Delete"]
-               [:a
-                {:class "text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800" :href "/items"} "Cancel"]])])
+               [:button.btn-red
+                {:type "submit"} "Delete"]
+               [:a.btn
+                {:href "/items"} "Cancel"]])])
 
 (defn item-form-delete-page [{:keys [biff/db query-params]}]
   (if-let [param-id (query-params "id")]
@@ -123,9 +158,9 @@
    [:td.border.px-4.py-2 qty]
    [:td.border.px-4.py-2
     [:div {:class "inline-flex gap-5"}
-     [:a {:class "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" :href (str "/items/view?id=" id)} "View "]
-     [:a {:class "bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded" :href (str "/items/edit?id=" id)} "Edit "]
-     [:a {:class "bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" :href (str "/items/delete?id=" id)} "Delete "]]]])
+     [:a.btn {:href (str "/items/view?id=" id)} "View "]
+     [:a.btn-orange {:href (str "/items/edit?id=" id)} "Edit "]
+     [:a.btn-red {:href (str "/items/delete?id=" id)} "Delete "]]]])
 
 (defn items-table [items]
   [:table.table-auto
@@ -158,17 +193,17 @@
       "."]
      [:.h-6]
      [:div.mb-6
-      (biff/form {:class "bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" :action "/items"}
+      (biff/form {:class "form" :action "/items"}
                  [:div.mb-4
                   [:label {:class "block text-gray-700 text-sm font-bold mb-2" :for "item-search"} "Search:"]
-                  [:input {:class "shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                           :id "item-search" :name "item-search" :type "text" :placeholder "Search" :value item-search}]]
+                  [:input.search-input {
+                           :id "item-search" :name "item-search" :type "text" :placeholder "Search item name" :value item-search}]]
                  [:div {:class "flex items-center justify-between"}
-                  [:button
-                   {:class "bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" :type "submit"} "Search"]])]
+                  [:button.btn
+                   {:type "submit"} "Search"]])]
      [:.h-6]
      [:div.mr-4
-      [:a {:class "font-medium text-blue-600 dark:text-blue-500 hover:underline" :href "/items/create"} "Create Item"]]
+      [:a.btn-orange {:href "/items/create"} "Create Item"]]
      [:.h-6]
      (if (empty? item-search)
        (let [max-items 10
@@ -190,14 +225,15 @@
          (items-table items)))
      [:.h-6]
      [:div.mb-6
-      [:a {:href (str "/items?page=" (dec page-num) "&q=" item-search) :class "inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"} "Previous"]
-      [:a {:href (str "/items?page=" (inc page-num) "&q=" item-search) :class "inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"} "Next"]])))
+      [:a.pagination {:href (str "/items?page=" (dec page-num))} "Previous"]
+      [:a.pagination {:href (str "/items?page=" (inc page-num))} "Next"]])))
 
 (def features
   {:routes ["/items" {:middleware [mid/wrap-signed-in]}
             ["" {:get items :post items}]
             ["/create" {:get item-form-page}]
             ["/save-item" {:post save-item}]
+            ["/view" {:get item-view-page}]
             ["/edit" {:get item-form-page}]
             ["/delete" {:get item-form-delete-page}]
             ["/delete-item" {:post delete-item}]]})
